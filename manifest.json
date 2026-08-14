@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "daniel.sysinfo",
+  "name": "System info",
+  "version": "1.0.0",
+  "author": "Daniel",
+  "description": "CPU, memory, disk and fan indicators — click opens btop",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "System info",
+    "description": "CPU, memory, disk and fan indicators — click opens btop",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
