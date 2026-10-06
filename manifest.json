@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "daniel.sysinfo",
+  "id": "danielmrdev.sysinfo",
   "name": "System info",
   "version": "1.0.0",
   "author": "Daniel",
-  "description": "CPU, memory, disk and fan indicators — click opens btop",
+  "description": "CPU percentage in the bar; click for system metrics and btop",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "System info",
-    "description": "CPU, memory, disk and fan indicators — click opens btop",
+    "description": "CPU percentage in the bar; click for system metrics and btop",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

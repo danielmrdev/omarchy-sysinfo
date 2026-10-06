@@ -1,60 +1,63 @@
-# omarchy-sysinfo
+# Omarchy System Info
 
-CPU, per-core CPU, RAM, disk, temperature, and fan indicators for the Omarchy 4 bar.
+A third-party Omarchy Shell bar widget that keeps the bar compact: CPU percentage stays visible, while the full system dashboard opens on click. Hover for a short summary. The dashboard includes a button to open or focus `btop`.
 
-Widget opens `btop` when clicked. Hovering CPU shows aggregate and per-core usage.
+![System info dashboard](preview.png)
+
+Tested on Omarchy `4.0.4-1`.
+
+## Features
+
+- Bar: aggregate CPU percentage, with warning and critical colors at 60% and 85%.
+- Hover summary: CPU, RAM, root filesystem usage, temperature, and fan speed.
+- Click panel: aggregate and per-core CPU, RAM, every unique mounted filesystem, temperature, and fan speed.
+- Storage includes local and network/FUSE filesystems, excludes pseudo-filesystems, and deduplicates mounts backed by the same source (including Btrfs subvolumes). A volume whose usage cannot be queried remains listed as unavailable.
+- Metrics refresh every three seconds. Storage queries share a one-second budget; each individual query has a one-second timeout.
+- Missing sensor data is shown as unavailable rather than as zero. A readable zero-RPM reading remains `0 RPM`.
 
 ## Requirements
 
-- Omarchy 4
-- Quickshell shell with third-party plugin support
-- Bash, `awk`, `df`, and standard `/proc`/`/sys` filesystems
-- `btop` for click action
+- Omarchy Shell 4 with third-party plugin support.
+- Bash, `awk`, `findmnt` (util-linux), `df` and `timeout` (coreutils), plus standard `/proc` and `/sys` filesystems. These are present on a standard Omarchy installation.
+- `btop` is optional; it is used only by the panel's launch button.
+
+Temperature currently uses a readable `coretemp` hwmon sensor. Fan speed currently uses the ThinkPad `fan1_input` or `fan2_input` hwmon sensor. Other hardware may report these values as unavailable.
 
 ## Install
 
-Review plugin source before installing: Omarchy plugins run arbitrary, unsandboxed code inside the long-lived shell process.
+Review the source before installing. Omarchy plugins run unsandboxed inside the long-lived shell process.
 
 ```bash
-omarchy plugin add https://github.com/danielmrdev/omarchy-sysinfo.git --yes
-omarchy plugin enable daniel.sysinfo --section right
+omarchy plugin add https://github.com/danielmrdev/omarchy-sysinfo.git --enable
 ```
 
-If plugin is already enabled, reload the shell after updates:
+The widget defaults to the right side of the bar. To enable an already-installed copy:
 
 ```bash
-omarchy-shell shell rescanPlugins
-# If an old QML instance remains cached:
-omarchy restart shell
+omarchy plugin enable danielmrdev.sysinfo --section right
 ```
 
-Remove it with:
+Update or remove it with:
 
 ```bash
-omarchy plugin remove daniel.sysinfo --yes
+omarchy plugin update danielmrdev.sysinfo
+omarchy plugin remove danielmrdev.sysinfo
 ```
 
-## Metrics
+## Data and permissions
 
-- CPU: aggregate usage percentage; warning/critical color thresholds at 60%/85%.
-- CPU tooltip: aggregate usage plus live usage for each core.
-- RAM: used percentage and used/total GiB.
-- Disk: root filesystem usage percentage and used/total GiB.
-- Temperature: `coretemp` package temperature.
-- Fan: ThinkPad `fan1_input`/`fan2_input` RPM when available.
-
-Metrics refresh every three seconds. Missing temperature or fan sensors report `0`.
+The collector reads `/proc`, `/sys`, mount metadata, and filesystem usage. `df` may access an already-mounted network or FUSE filesystem while querying its usage; these calls are bounded by timeouts. The plugin makes no direct API calls and requests no elevated privileges. The `btop` helper runs only when its button is clicked.
 
 ## Development
 
-From this directory:
+The test suite uses Python 3. From the repository root:
 
 ```bash
 omarchy plugin validate .
-qmllint BarWidget.qml
-bash -n sysinfo.sh
-./sysinfo.sh
+find . -type f -name '*.qml' -print0 | xargs -0 qmllint -I "$OMARCHY_PATH/shell"
+bash -n sysinfo.sh tests/test_sysinfo.sh
+./tests/test_sysinfo.sh
+./sysinfo.sh | python3 -m json.tool
 ```
 
-To test a local checkout without cloning it, copy or symlink the plugin into
-`~/.config/omarchy/plugins/daniel.sysinfo/`, then rescan the shell.
+See [CHANGELOG.md](CHANGELOG.md) for release history. This project is licensed under MIT; see [LICENSE](LICENSE).
