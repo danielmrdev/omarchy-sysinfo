@@ -45,7 +45,7 @@ Panel {
   }
 
   function formatVolume(volume) {
-    if (!volume || !volume.available) return "No disponible"
+    if (!volume || !volume.available) return "Not available"
     return volume.usedGiB.toFixed(1) + " / " + volume.totalGiB.toFixed(1)
       + " GiB · " + volume.percent + "%"
   }
@@ -238,7 +238,7 @@ Panel {
             SummaryBlock {
               width: (parent.width - parent.spacing) / 2
               label: "CPU"
-              valueText: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu + "%" : "No disponible"
+              valueText: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu + "%" : "Not available"
               progress: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu : -1
               valueColor: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpuColor : root.foreground
             }
@@ -247,7 +247,7 @@ Panel {
               label: "MEMORY"
               valueText: root.hostWidget && root.hostWidget.dataAvailable
                 ? root.hostWidget.ramUsedGb.toFixed(1) + " / " + root.hostWidget.ramTotalGb.toFixed(1) + " GiB · " + root.hostWidget.mem + "%"
-                : "No disponible"
+                : "Not available"
               progress: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.mem : -1
               valueColor: root.foreground
             }
@@ -326,7 +326,7 @@ Panel {
           Text {
             visible: root.coreValues.length === 0
             textFormat: Text.PlainText
-            text: "No disponible"
+            text: "Not available"
             color: Qt.darker(root.foreground, 1.4)
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -403,7 +403,7 @@ Panel {
           Text {
             visible: root.volumes.length === 0
             textFormat: Text.PlainText
-            text: "No disponible"
+            text: "Not available"
             color: Qt.darker(root.foreground, 1.4)
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -426,7 +426,7 @@ Panel {
               label: "TEMPERATURE"
               valueText: root.hostWidget && root.hostWidget.tempAvailable
                 ? root.hostWidget.temp + "°C"
-                : "No disponible"
+                : "Not available"
               valueColor: root.foreground
             }
             SummaryBlock {
@@ -434,7 +434,7 @@ Panel {
               label: "FAN"
               valueText: root.hostWidget && root.hostWidget.fanAvailable
                 ? root.hostWidget.fan + " RPM"
-                : "No disponible"
+                : "Not available"
               valueColor: root.foreground
             }
           }

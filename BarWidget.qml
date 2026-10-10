@@ -92,15 +92,15 @@ BarWidget {
   }
 
   function tooltipSummary() {
-    var cpuText = root.dataAvailable ? root.cpu + "%" : "No disponible"
+    var cpuText = root.dataAvailable ? root.cpu + "%" : "Not available"
     var ram = root.dataAvailable
       ? root.ramUsedGb.toFixed(1) + " / " + root.ramTotalGb.toFixed(1) + " GiB (" + root.mem + "%)"
-      : "No disponible"
+      : "Not available"
     var diskText = root.dataAvailable && root.diskAvailable
       ? root.diskUsed.toFixed(1) + " / " + root.diskTotal.toFixed(1) + " GiB (" + root.disk + "%)"
-      : "No disponible"
-    var temperature = root.dataAvailable && root.tempAvailable ? root.temp + "°C" : "No disponible"
-    var fanSpeed = root.dataAvailable && root.fanAvailable ? root.fan + " RPM" : "No disponible"
+      : "Not available"
+    var temperature = root.dataAvailable && root.tempAvailable ? root.temp + "°C" : "Not available"
+    var fanSpeed = root.dataAvailable && root.fanAvailable ? root.fan + " RPM" : "Not available"
     return "System info - CPU: " + cpuText
       + "\nRAM: " + ram
       + "\nDisk /: " + diskText
