@@ -37,18 +37,22 @@ ram_used_gb=$(awk -v u="$ram_used" 'BEGIN {printf "%.1f", u/1024}')
 ram_total_gb=$(awk -v t="$ram_total" 'BEGIN {printf "%.1f", t/1024}')
 
 # Temperature availability is separate so a readable zero remains a valid reading.
+# Intel CPUs expose "coretemp"; AMD CPUs expose "k10temp" (or the out-of-tree
+# "zenpower"). Try the known CPU sensors in preference order.
 temp=0
 temp_available=false
-for hw in /sys/class/hwmon/hwmon*; do
-  [[ -r "$hw/name" ]] || continue
-  IFS= read -r name < "$hw/name" || continue
-  [[ "$name" == "coretemp" && -r "$hw/temp1_input" ]] || continue
-  IFS= read -r temp_millidegrees < "$hw/temp1_input" || continue
-  if [[ "$temp_millidegrees" =~ ^[0-9]+$ ]]; then
-    temp=$((temp_millidegrees / 1000))
-    temp_available=true
-    break
-  fi
+for sensor_name in coretemp k10temp zenpower; do
+  for hw in /sys/class/hwmon/hwmon*; do
+    [[ -r "$hw/name" ]] || continue
+    IFS= read -r name < "$hw/name" || continue
+    [[ "$name" == "$sensor_name" && -r "$hw/temp1_input" ]] || continue
+    IFS= read -r temp_millidegrees < "$hw/temp1_input" || continue
+    if [[ "$temp_millidegrees" =~ ^[0-9]+$ ]]; then
+      temp=$((temp_millidegrees / 1000))
+      temp_available=true
+      break 2
+    fi
+  done
 done
 
 # Fan availability is separate so a readable zero RPM remains a valid reading.
