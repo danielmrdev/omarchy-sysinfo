@@ -2,6 +2,14 @@
 
 Notable changes for each release are listed here.
 
+## [1.1.0] - 2026-10-13
+
+- Add an About page with plugin version and project links.
+- Add English and Spanish translations with a persistent System / English / Español selector.
+- Keep version out of the metrics hero.
+- Reserve bar-widget width for three-digit CPU percentages to prevent layout shifts.
+- Keep the product name `System Info` unchanged in both locales.
+
 ## [1.0.0] - 2026-10-06
 
 Initial release.

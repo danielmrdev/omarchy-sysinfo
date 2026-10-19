@@ -3,10 +3,36 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "i18n.js" as I18n
 
 BarWidget {
   id: root
   moduleName: "danielmrdev.sysinfo"
+
+  readonly property string activeLanguage: {
+    var locale = Qt.locale()
+    var preferred = locale && locale.uiLanguages ? locale.uiLanguages : []
+    return I18n.resolveLanguage(locale && locale.name ? String(locale.name) : "", preferred)
+  }
+  readonly property string uiLanguage: I18n.normalizeOverride(setting("uiLanguage", "system"))
+
+  function tr(key) {
+    return I18n.t(key, root.activeLanguage, root.uiLanguage)
+  }
+
+  function persistSetting(key, value) {
+    var entry = { id: root.moduleName }
+    var current = root.settings || {}
+    for (var name in current) if (name !== "id") entry[name] = current[name]
+    entry[key] = value
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
+  function setUiLanguage(language) {
+    persistSetting("uiLanguage", I18n.normalizeOverride(language))
+  }
 
   property bool dataAvailable: false
   property int cpu: 0
@@ -51,6 +77,16 @@ BarWidget {
 
   property real horizontalMargin: Style.spaceReal(8.5)
 
+  Text {
+    id: maximumCpuLabel
+    visible: false
+    textFormat: Text.PlainText
+    text: "100%"
+    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+    font.pixelSize: Style.font.body
+    renderType: Text.NativeRendering
+  }
+
   implicitWidth: metricButton.implicitWidth + 2 * root.horizontalMargin
   implicitHeight: root.vertical ? metricButton.implicitHeight : (root.bar ? root.bar.barSize : metricButton.implicitHeight)
 
@@ -92,19 +128,21 @@ BarWidget {
   }
 
   function tooltipSummary() {
-    var cpuText = root.dataAvailable ? root.cpu + "%" : "No disponible"
+    var unavailable = root.tr("unavailable")
+    var cpuText = root.dataAvailable ? root.cpu + "%" : unavailable
     var ram = root.dataAvailable
       ? root.ramUsedGb.toFixed(1) + " / " + root.ramTotalGb.toFixed(1) + " GiB (" + root.mem + "%)"
-      : "No disponible"
+      : unavailable
     var diskText = root.dataAvailable && root.diskAvailable
       ? root.diskUsed.toFixed(1) + " / " + root.diskTotal.toFixed(1) + " GiB (" + root.disk + "%)"
-      : "No disponible"
-    var temperature = root.dataAvailable && root.tempAvailable ? root.temp + "°C" : "No disponible"
-    var fanSpeed = root.dataAvailable && root.fanAvailable ? root.fan + " RPM" : "No disponible"
-    return "System info - CPU: " + cpuText
-      + "\nRAM: " + ram
-      + "\nDisk /: " + diskText
-      + "\nThermal: Temp " + temperature + " · Fan " + fanSpeed
+      : unavailable
+    var temperature = root.dataAvailable && root.tempAvailable ? root.temp + "°C" : unavailable
+    var fanSpeed = root.dataAvailable && root.fanAvailable ? root.fan + " RPM" : unavailable
+    return root.tr("title") + " - " + root.tr("cpu") + ": " + cpuText
+      + "\n" + root.tr("tooltipRam") + ": " + ram
+      + "\n" + root.tr("tooltipDisk") + ": " + diskText
+      + "\n" + root.tr("thermals") + ": " + root.tr("tooltipTemp") + " " + temperature
+      + " · " + root.tr("fan") + " " + fanSpeed
   }
 
   function injectPanel() {
@@ -139,6 +177,7 @@ BarWidget {
     property var registeredBar: null
     property string iconText: ""
     property string valueText: ""
+    property real valueSlotWidth: 0
     property string tooltipText: ""
     readonly property bool tooltipHovered: visible && mouse.containsMouse
     property color iconColor: metric.bar ? metric.bar.barForeground : Color.foreground
@@ -168,7 +207,10 @@ BarWidget {
       if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(metric)
     }
 
-    implicitWidth: row.implicitWidth
+    readonly property real contentWidth: iconLabel.implicitWidth + row.spacing
+      + Math.max(metric.valueSlotWidth, valueLabel.implicitWidth)
+
+    implicitWidth: contentWidth
     implicitHeight: !metric.bar || metric.bar.vertical ? row.implicitHeight : metric.bar.barSize
 
     Row {
@@ -177,6 +219,7 @@ BarWidget {
       spacing: Style.spacing.lg
 
       Text {
+        id: iconLabel
         textFormat: Text.PlainText
         text: metric.iconText
         font.family: metric.bar ? metric.bar.fontFamily : Style.font.family
@@ -185,6 +228,7 @@ BarWidget {
         renderType: Text.NativeRendering
       }
       Text {
+        id: valueLabel
         textFormat: Text.PlainText
         text: metric.valueText
         font.family: metric.bar ? metric.bar.fontFamily : Style.font.family
@@ -214,6 +258,7 @@ BarWidget {
     bar: root.bar
     iconText: "󰍛"
     valueText: root.dataAvailable ? root.cpu + "%" : "—"
+    valueSlotWidth: maximumCpuLabel.implicitWidth
     valueColor: root.cpuColor
     tooltipText: root.tooltipSummary()
   }
@@ -318,5 +363,6 @@ BarWidget {
   }
 
   onBarChanged: Qt.callLater(injectPanel)
+  onUiLanguageChanged: metricButton.refreshTooltip()
   Component.onCompleted: Qt.callLater(injectPanel)
 }
