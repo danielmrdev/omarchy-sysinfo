@@ -36,21 +36,6 @@ ram_total=$((total_kb / 1024))
 ram_used_gb=$(awk -v u="$ram_used" 'BEGIN {printf "%.1f", u/1024}')
 ram_total_gb=$(awk -v t="$ram_total" 'BEGIN {printf "%.1f", t/1024}')
 
-# Temperature availability is separate so a readable zero remains a valid reading.
-temp=0
-temp_available=false
-for hw in /sys/class/hwmon/hwmon*; do
-  [[ -r "$hw/name" ]] || continue
-  IFS= read -r name < "$hw/name" || continue
-  [[ "$name" == "coretemp" && -r "$hw/temp1_input" ]] || continue
-  IFS= read -r temp_millidegrees < "$hw/temp1_input" || continue
-  if [[ "$temp_millidegrees" =~ ^[0-9]+$ ]]; then
-    temp=$((temp_millidegrees / 1000))
-    temp_available=true
-    break
-  fi
-done
-
 # Fan availability is separate so a readable zero RPM remains a valid reading.
 fan=0
 fan_available=false
@@ -78,6 +63,94 @@ json_quote() {
   value=${value//$'\t'/\\t}
   printf '"%s"' "$value"
 }
+
+collect_temperature_sensors() {
+  local LC_COLLATE=C
+  local hw name input raw label label_file channel_text channel sign magnitude milli_c has_label
+  local primary_hw='' primary_milli=0 primary_label='temp1'
+  local device_json label_json count=0
+
+  temperature_sensors_json='['
+  temperature_sensors_truncated=false
+
+  for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
+    [[ -r "$hw/name" ]] || continue
+    IFS= read -r name < "$hw/name" || continue
+    [[ "$name" == "coretemp" && -r "$hw/temp1_input" ]] || continue
+    IFS= read -r raw < "$hw/temp1_input" || continue
+    [[ "$raw" =~ ^[0-9]+$ && ${#raw} -le 15 ]] || continue
+
+    primary_hw=$hw
+    primary_milli=$((10#$raw))
+    if [[ -r "$hw/temp1_label" ]]; then
+      IFS= read -r primary_label < "$hw/temp1_label" || primary_label='temp1'
+      [[ -n "${primary_label//[[:space:]]/}" ]] || primary_label='temp1'
+      primary_label=${primary_label:0:128}
+    fi
+    break
+  done
+
+  if [[ -n "$primary_hw" ]]; then
+    name=coretemp
+    device_json=$(json_quote "$name")
+    label_json=$(json_quote "$primary_label")
+    temperature_sensors_json+="{\"device\":$device_json,\"channel\":1,\"label\":$label_json,\"milliC\":$primary_milli,\"tooltipSource\":true}"
+    count=1
+  fi
+
+  for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
+    [[ -r "$hw/name" ]] || continue
+    IFS= read -r name < "$hw/name" || continue
+    [[ "$name" == "coretemp" ]] && continue
+    name=${name:0:64}
+
+    for input in "$hw"/temp[0-9]*_input; do
+      [[ -r "$input" ]] || continue
+      [[ "$input" =~ /temp([0-9]+)_input$ ]] || continue
+      channel_text=${BASH_REMATCH[1]}
+      [[ ${#channel_text} -le 4 ]] || continue
+      IFS= read -r raw < "$input" || continue
+      [[ "$raw" =~ ^[+-]?[0-9]+$ && ${#raw} -le 16 ]] || continue
+
+      channel=$((10#$channel_text))
+      ((channel >= 1 && channel <= 9999)) || continue
+      sign=1
+      magnitude=$raw
+      if [[ "$magnitude" == -* ]]; then
+        sign=-1
+        magnitude=${magnitude#-}
+      elif [[ "$magnitude" == +* ]]; then
+        magnitude=${magnitude#+}
+      fi
+      milli_c=$((sign * 10#$magnitude))
+
+      label_file="$hw/temp${channel_text}_label"
+      label=''
+      has_label=false
+      if [[ -r "$label_file" ]]; then
+        IFS= read -r label < "$label_file" || label=''
+        [[ -n "${label//[[:space:]]/}" ]] && has_label=true
+      fi
+      [[ "$milli_c" != 0 || "$has_label" == true ]] || continue
+      [[ "$has_label" == true ]] || label="temp$channel"
+      label=${label:0:128}
+
+      if (( count >= 16 )); then
+        temperature_sensors_truncated=true
+        break 2
+      fi
+
+      device_json=$(json_quote "$name")
+      label_json=$(json_quote "$label")
+      ((count)) && temperature_sensors_json+=','
+      temperature_sensors_json+="{\"device\":$device_json,\"channel\":$channel,\"label\":$label_json,\"milliC\":$milli_c,\"tooltipSource\":false}"
+      count=$((count + 1))
+    done
+  done
+
+  temperature_sensors_json+=']'
+}
+collect_temperature_sensors
 
 storage_json='[]'
 disk=0
@@ -168,6 +241,6 @@ collect_storage() {
 }
 collect_storage
 
-printf '{"cpu":%d,"cores":[%s],"mem":%d,"disk":%d,"diskAvailable":%s,"temp":%d,"tempAvailable":%s,"fan":%d,"fanAvailable":%s,"ramUsedGb":%s,"ramTotalGb":%s,"diskUsed":%s,"diskTotal":%s,"storage":%s}\n' \
-  "$cpu" "$cores" "$mem" "$disk" "$diskAvailable" "$temp" "$temp_available" "$fan" "$fan_available" \
-  "$ram_used_gb" "$ram_total_gb" "$diskUsed" "$diskTotal" "$storage_json"
+printf '{"cpu":%d,"cores":[%s],"mem":%d,"disk":%d,"diskAvailable":%s,"fan":%d,"fanAvailable":%s,"temperatureSensors":%s,"temperatureSensorsTruncated":%s,"ramUsedGb":%s,"ramTotalGb":%s,"diskUsed":%s,"diskTotal":%s,"storage":%s}\n' \
+  "$cpu" "$cores" "$mem" "$disk" "$diskAvailable" "$fan" "$fan_available" \
+  "$temperature_sensors_json" "$temperature_sensors_truncated" "$ram_used_gb" "$ram_total_gb" "$diskUsed" "$diskTotal" "$storage_json"

@@ -32,6 +32,17 @@ Panel {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var coreValues: hostWidget && hostWidget.dataAvailable && Array.isArray(hostWidget.cores) ? hostWidget.cores : []
   readonly property var volumes: hostWidget && hostWidget.dataAvailable && Array.isArray(hostWidget.storage) ? hostWidget.storage : []
+  readonly property var additionalTemperatureSensors: {
+    var sensors = hostWidget && hostWidget.dataAvailable && Array.isArray(hostWidget.temperatureSensors)
+      ? hostWidget.temperatureSensors : []
+    var additional = []
+    for (var i = 0; i < sensors.length; i++) {
+      if (sensors[i] && sensors[i].tooltipSource !== true) additional.push(sensors[i])
+    }
+    return additional
+  }
+  readonly property bool temperatureSensorsTruncated: !!(hostWidget && hostWidget.dataAvailable
+    && hostWidget.temperatureSensorsTruncated === true)
 
   function tr(key) {
     return I18n.t(key, root.systemLanguage, root.uiLanguage)
@@ -512,6 +523,55 @@ Panel {
                 ? root.hostWidget.fan + " RPM"
                 : root.tr("unavailable")
               valueColor: root.foreground
+            }
+          }
+
+          Column {
+            id: additionalTemperatureList
+            width: parent.width
+            spacing: Style.space(4)
+
+            Repeater {
+              model: root.additionalTemperatureSensors
+
+              delegate: Row {
+                required property var modelData
+                width: additionalTemperatureList.width
+                spacing: Style.space(8)
+
+                Text {
+                  id: sensorLabel
+                  textFormat: Text.PlainText
+                  width: parent.width * 0.65
+                  text: modelData.device + " · " + modelData.label
+                  color: root.foreground
+                  opacity: 0.6
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  elide: Text.ElideRight
+                }
+                Text {
+                  textFormat: Text.PlainText
+                  width: Math.max(1, parent.width - sensorLabel.width - parent.spacing)
+                  text: (modelData.milliC / 1000).toFixed(1) + "°C"
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  horizontalAlignment: Text.AlignRight
+                  elide: Text.ElideLeft
+                }
+              }
+            }
+
+            Text {
+              visible: root.temperatureSensorsTruncated
+              textFormat: Text.PlainText
+              text: root.tr("temperatureSensorsTruncated")
+              color: root.foreground
+              opacity: 0.6
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
             }
           }
         }

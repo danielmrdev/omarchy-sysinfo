@@ -2,6 +2,10 @@
 
 Notable changes for each release are listed here.
 
+## Unreleased
+
+- Show additional hwmon temperature readings in the dropdown while preserving the primary `coretemp` tooltip. Omit unnamed zero placeholders and note when the 16-sensor limit truncates the list.
+
 ## [1.1.0] - 2026-10-13
 
 - Add an About page with plugin version and project links.

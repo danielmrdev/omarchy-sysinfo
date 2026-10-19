@@ -40,8 +40,17 @@ BarWidget {
   property int mem: 0
   property int disk: 0
   property bool diskAvailable: false
-  property int temp: 0
-  property bool tempAvailable: false
+  property var temperatureSensors: []
+  property bool temperatureSensorsTruncated: false
+  readonly property var primaryTemperatureSensor: {
+    for (var i = 0; i < root.temperatureSensors.length; i++) {
+      var sensor = root.temperatureSensors[i]
+      if (sensor && sensor.tooltipSource === true) return sensor
+    }
+    return null
+  }
+  readonly property bool tempAvailable: root.primaryTemperatureSensor !== null
+  readonly property real temp: root.tempAvailable ? Math.floor(root.primaryTemperatureSensor.milliC / 1000) : 0
   property int fan: 0
   property bool fanAvailable: false
   property real ramUsedGb: 0
@@ -109,8 +118,8 @@ BarWidget {
     mem = 0
     disk = 0
     diskAvailable = false
-    temp = 0
-    tempAvailable = false
+    temperatureSensors = []
+    temperatureSensorsTruncated = false
     fan = 0
     fanAvailable = false
     ramUsedGb = 0
@@ -299,8 +308,41 @@ BarWidget {
           root.cores = nextCores
           root.ramUsedGb = root.finiteNumber(info.ramUsedGb) ? Math.max(0, info.ramUsedGb) : 0
           root.ramTotalGb = root.finiteNumber(info.ramTotalGb) ? Math.max(0, info.ramTotalGb) : 0
-          root.tempAvailable = info.tempAvailable === true && root.finiteNumber(info.temp)
-          root.temp = root.tempAvailable ? Math.max(0, Math.round(info.temp)) : 0
+          var nextTemperatureSensors = []
+          var nextTemperatureSensorsTruncated = false
+          var primaryTemperatureFound = false
+          if (Array.isArray(info.temperatureSensors)) {
+            nextTemperatureSensorsTruncated = info.temperatureSensorsTruncated === true
+            for (var sensorIndex = 0; sensorIndex < info.temperatureSensors.length; sensorIndex++) {
+              var sensor = info.temperatureSensors[sensorIndex]
+              if (!sensor || typeof sensor.device !== "string" || sensor.device.trim().length === 0 || sensor.device.length > 64
+                  || typeof sensor.label !== "string" || sensor.label.trim().length === 0 || sensor.label.length > 128
+                  || !root.finiteNumber(sensor.channel) || Math.floor(sensor.channel) !== sensor.channel || sensor.channel < 1 || sensor.channel > 9999
+                  || !root.finiteNumber(sensor.milliC) || Math.floor(sensor.milliC) !== sensor.milliC || Math.abs(sensor.milliC) > 9007199254740991
+                  || typeof sensor.tooltipSource !== "boolean") continue
+
+              if (sensor.tooltipSource) {
+                if (primaryTemperatureFound || sensor.device !== "coretemp" || sensor.channel !== 1 || sensor.milliC < 0) continue
+                primaryTemperatureFound = true
+              } else if (sensor.device === "coretemp") {
+                continue
+              }
+
+              if (nextTemperatureSensors.length >= 16) {
+                nextTemperatureSensorsTruncated = true
+                break
+              }
+              nextTemperatureSensors.push({
+                device: sensor.device,
+                channel: sensor.channel,
+                label: sensor.label.trim(),
+                milliC: sensor.milliC,
+                tooltipSource: sensor.tooltipSource
+              })
+            }
+          }
+          root.temperatureSensors = nextTemperatureSensors
+          root.temperatureSensorsTruncated = nextTemperatureSensorsTruncated
           root.fanAvailable = info.fanAvailable === true && root.finiteNumber(info.fan)
           root.fan = root.fanAvailable ? Math.max(0, Math.round(info.fan)) : 0
 

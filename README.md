@@ -10,10 +10,10 @@ Tested on Omarchy `4.0.4-1`.
 
 - Bar: aggregate CPU percentage, with warning and critical colors at 60% and 85%; reserves width for `100%` so one-, two-, and three-digit readings do not shift the bar.
 - Hover summary: CPU, RAM, root filesystem usage, temperature, and fan speed.
-- Click panel: aggregate and per-core CPU, RAM, every unique mounted filesystem, temperature, and fan speed.
+- Click panel: aggregate and per-core CPU, RAM, every unique mounted filesystem, the primary coretemp reading, other hwmon temperatures, and fan speed.
 - Storage includes local and network/FUSE filesystems, excludes pseudo-filesystems, and deduplicates mounts backed by the same source (including Btrfs subvolumes). A volume whose usage cannot be queried remains listed as unavailable.
 - Metrics refresh every three seconds. Storage queries share a one-second budget; each individual query has a one-second timeout.
-- Missing sensor data is shown as unavailable rather than as zero. A readable zero-RPM reading remains `0 RPM`.
+- Missing sensor data is shown as unavailable rather than as zero. A readable zero-temperature reading remains valid when its channel has a label or is the primary coretemp reading. A readable zero-RPM reading remains `0 RPM`.
 - Interface supports English and Spanish. Choose System, English, or Español in About; selection persists in Omarchy's `shell.json`, with English fallback for unsupported system locales.
 
 ## Requirements
@@ -22,7 +22,7 @@ Tested on Omarchy `4.0.4-1`.
 - Bash, `awk`, `findmnt` (util-linux), `df` and `timeout` (coreutils), plus standard `/proc` and `/sys` filesystems. These are present on a standard Omarchy installation.
 - `btop` is optional; it is used only by the panel's launch button.
 
-Temperature currently uses a readable `coretemp` hwmon sensor. Fan speed currently uses the ThinkPad `fan1_input` or `fan2_input` hwmon sensor. Other hardware may report these values as unavailable.
+Temperature readings come from readable `temp*_input` files under `/sys/class/hwmon`. The tooltip and summary card use the first non-negative integer reading from `coretemp/temp1_input`; the panel also lists readings from other hwmon devices. The panel omits non-primary coretemp channels and unnamed zero-value channels. It shows at most 16 sensors and uses the device channel name when a label is missing. Fan speed uses the ThinkPad `fan1_input` or `fan2_input`; other hardware may not report fan speed.
 
 ## Install
 
@@ -56,7 +56,8 @@ Collector tests use Python 3; the translation check uses Node.js. From the repos
 ```bash
 omarchy plugin validate .
 find . -type f -name '*.qml' -print0 | xargs -0 qmllint -I "$OMARCHY_PATH/shell"
-bash -n sysinfo.sh tests/test_sysinfo.sh
+bash -n sysinfo.sh
+bash -n tests/test_sysinfo.sh
 node tests/test_i18n.js
 node tests/test_bar_width.js
 ./tests/test_sysinfo.sh
