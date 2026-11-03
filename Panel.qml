@@ -316,7 +316,9 @@ Panel {
               label: root.tr("cpu")
               valueText: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu + "%" : root.tr("unavailable")
               progress: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu : -1
-              valueColor: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpuColor : root.foreground
+              valueColor: root.hostWidget && root.hostWidget.dataAvailable
+                ? root.hostWidget.cpuColorOn(root.foreground)
+                : root.foreground
             }
             SummaryBlock {
               width: (parent.width - parent.spacing) / 2

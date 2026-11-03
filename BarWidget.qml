@@ -55,18 +55,30 @@ BarWidget {
   property int cpuCrit: Number(setting("cpuCrit", 85))
 
   readonly property color barTextColor: root.bar ? root.bar.barForeground : Color.foreground
-  readonly property color cpuColor: {
-    if (root.cpu >= root.cpuCrit) return Color.urgent
-    if (root.cpu >= root.cpuWarn) {
-      var t = (root.cpu - root.cpuWarn) / Math.max(1, root.cpuCrit - root.cpuWarn)
+
+  // Blend a surface's own foreground toward the theme's urgent color as a
+  // metric crosses its warning threshold. Callers pass the color of the
+  // surface they are drawn on, so the bar and the popup each stay readable
+  // instead of inheriting the bar's transparent-wallpaper contrast color.
+  function severityColor(value, warn, crit, baseColor) {
+    if (!root.finiteNumber(value)) return baseColor
+    if (value >= crit) return Color.urgent
+    if (value >= warn) {
+      var t = (value - warn) / Math.max(1, crit - warn)
       return Qt.rgba(
-        root.barTextColor.r + (Color.urgent.r - root.barTextColor.r) * t,
-        root.barTextColor.g + (Color.urgent.g - root.barTextColor.g) * t,
-        root.barTextColor.b + (Color.urgent.b - root.barTextColor.b) * t,
+        baseColor.r + (Color.urgent.r - baseColor.r) * t,
+        baseColor.g + (Color.urgent.g - baseColor.g) * t,
+        baseColor.b + (Color.urgent.b - baseColor.b) * t,
         1)
     }
-    return root.barTextColor
+    return baseColor
   }
+
+  function cpuColorOn(baseColor) {
+    return root.severityColor(root.cpu, root.cpuWarn, root.cpuCrit, baseColor)
+  }
+
+  readonly property color cpuColor: root.cpuColorOn(root.barTextColor)
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item
