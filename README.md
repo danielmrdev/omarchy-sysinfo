@@ -4,7 +4,7 @@ A third-party Omarchy Shell bar widget that keeps the bar compact: CPU percentag
 
 ![System Info dashboard, version 1.1.1](preview.png)
 
-Tested on Omarchy `4.0.4-1`.
+Tested on Omarchy `4.0.6`.
 
 ## Features
 
