@@ -74,7 +74,7 @@ assert info["diskAvailable"] is True
 print("PASS: mount filtering, deduplication, escaped paths, JSON metrics")
 PY
 
-mkdir -p "$tmp_dir/hwmon-main"/{hwmon0,hwmon1,hwmon2,hwmon3,hwmon4,hwmon5}
+mkdir -p "$tmp_dir/hwmon-main"/{hwmon0,hwmon1,hwmon2,hwmon3,hwmon4,hwmon5,hwmon6,hwmon7}
 printf 'coretemp\n' > "$tmp_dir/hwmon-main/hwmon0/name"
 printf 'invalid\n' > "$tmp_dir/hwmon-main/hwmon0/temp1_input"
 printf '90000\n' > "$tmp_dir/hwmon-main/hwmon0/temp2_input"
@@ -96,6 +96,12 @@ printf '00033000\n' > "$tmp_dir/hwmon-main/hwmon4/temp1_input"
 printf 'wifi\n' > "$tmp_dir/hwmon-main/hwmon5/name"
 printf '00042500\n' > "$tmp_dir/hwmon-main/hwmon5/temp1_input"
 printf 'Wi-Fi PHY\n' > "$tmp_dir/hwmon-main/hwmon5/temp1_label"
+printf 'k10temp\n' > "$tmp_dir/hwmon-main/hwmon6/name"
+printf '00051000\n' > "$tmp_dir/hwmon-main/hwmon6/temp1_input"
+printf 'Tctl\n' > "$tmp_dir/hwmon-main/hwmon6/temp1_label"
+printf 'zenpower\n' > "$tmp_dir/hwmon-main/hwmon7/name"
+printf '00052000\n' > "$tmp_dir/hwmon-main/hwmon7/temp1_input"
+printf 'Tctl\n' > "$tmp_dir/hwmon-main/hwmon7/temp1_label"
 
 thermal_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-main")
 thermal_json_repeat=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-main")
@@ -112,11 +118,52 @@ expected = [
     {"device": "thinkpad", "channel": 4, "label": "temp4", "milliC": 45678, "tooltipSource": False},
     {"device": "nvme", "channel": 1, "label": "temp1", "milliC": 33000, "tooltipSource": False},
     {"device": "wifi", "channel": 1, "label": "Wi-Fi PHY", "milliC": 42500, "tooltipSource": False},
+    {"device": "k10temp", "channel": 1, "label": "Tctl", "milliC": 51000, "tooltipSource": False},
+    {"device": "zenpower", "channel": 1, "label": "Tctl", "milliC": 52000, "tooltipSource": False},
 ]
 assert info["temperatureSensors"] == expected, info["temperatureSensors"]
 assert repeated_info["temperatureSensors"] == expected, repeated_info["temperatureSensors"]
 assert info["temperatureSensorsTruncated"] is False
 print("PASS: primary selection, filtering, signed values, escaping, and deterministic order")
+PY
+
+mkdir -p "$tmp_dir/hwmon-amd"/{hwmon0,hwmon1}
+printf 'k10temp\n' > "$tmp_dir/hwmon-amd/hwmon0/name"
+printf '00051000\n' > "$tmp_dir/hwmon-amd/hwmon0/temp1_input"
+printf 'Tctl\n' > "$tmp_dir/hwmon-amd/hwmon0/temp1_label"
+printf '00048000\n' > "$tmp_dir/hwmon-amd/hwmon0/temp2_input"
+printf 'Tdie\n' > "$tmp_dir/hwmon-amd/hwmon0/temp2_label"
+printf 'zenpower\n' > "$tmp_dir/hwmon-amd/hwmon1/name"
+printf '00052000\n' > "$tmp_dir/hwmon-amd/hwmon1/temp1_input"
+printf 'Tctl\n' > "$tmp_dir/hwmon-amd/hwmon1/temp1_label"
+amd_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-amd")
+python3 - "$amd_json" <<'PY'
+import json
+import sys
+
+info = json.loads(sys.argv[1])
+assert info["temperatureSensors"] == [
+    {"device": "k10temp", "channel": 1, "label": "Tctl", "milliC": 51000, "tooltipSource": True},
+    {"device": "k10temp", "channel": 2, "label": "Tdie", "milliC": 48000, "tooltipSource": False},
+    {"device": "zenpower", "channel": 1, "label": "Tctl", "milliC": 52000, "tooltipSource": False},
+], info["temperatureSensors"]
+print("PASS: AMD CPU sensor priority and additional channels")
+PY
+
+mkdir -p "$tmp_dir/hwmon-zenpower/hwmon0"
+printf 'zenpower\n' > "$tmp_dir/hwmon-zenpower/hwmon0/name"
+printf '00049000\n' > "$tmp_dir/hwmon-zenpower/hwmon0/temp1_input"
+printf 'Tctl\n' > "$tmp_dir/hwmon-zenpower/hwmon0/temp1_label"
+zenpower_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-zenpower")
+python3 - "$zenpower_json" <<'PY'
+import json
+import sys
+
+info = json.loads(sys.argv[1])
+assert info["temperatureSensors"] == [
+    {"device": "zenpower", "channel": 1, "label": "Tctl", "milliC": 49000, "tooltipSource": True}
+], info["temperatureSensors"]
+print("PASS: zenpower fallback as primary CPU sensor")
 PY
 
 mkdir -p "$tmp_dir/hwmon-zero-primary/hwmon0"

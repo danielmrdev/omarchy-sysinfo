@@ -66,32 +66,35 @@ json_quote() {
 
 collect_temperature_sensors() {
   local LC_COLLATE=C
-  local hw name input raw label label_file channel_text channel sign magnitude milli_c has_label
-  local primary_hw='' primary_milli=0 primary_label='temp1'
+  local hw name input raw label label_file channel_text channel sign magnitude milli_c has_label sensor_name
+  local primary_hw='' primary_name='' primary_milli=0 primary_label='temp1'
   local device_json label_json count=0
 
   temperature_sensors_json='['
   temperature_sensors_truncated=false
 
-  for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
-    [[ -r "$hw/name" ]] || continue
-    IFS= read -r name < "$hw/name" || continue
-    [[ "$name" == "coretemp" && -r "$hw/temp1_input" ]] || continue
-    IFS= read -r raw < "$hw/temp1_input" || continue
-    [[ "$raw" =~ ^[0-9]+$ && ${#raw} -le 15 ]] || continue
+  for sensor_name in coretemp k10temp zenpower; do
+    for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
+      [[ -r "$hw/name" ]] || continue
+      IFS= read -r name < "$hw/name" || continue
+      [[ "$name" == "$sensor_name" && -r "$hw/temp1_input" ]] || continue
+      IFS= read -r raw < "$hw/temp1_input" || continue
+      [[ "$raw" =~ ^[0-9]+$ && ${#raw} -le 15 ]] || continue
 
-    primary_hw=$hw
-    primary_milli=$((10#$raw))
-    if [[ -r "$hw/temp1_label" ]]; then
-      IFS= read -r primary_label < "$hw/temp1_label" || primary_label='temp1'
-      [[ -n "${primary_label//[[:space:]]/}" ]] || primary_label='temp1'
-      primary_label=${primary_label:0:128}
-    fi
-    break
+      primary_hw=$hw
+      primary_name=$name
+      primary_milli=$((10#$raw))
+      if [[ -r "$hw/temp1_label" ]]; then
+        IFS= read -r primary_label < "$hw/temp1_label" || primary_label='temp1'
+        [[ -n "${primary_label//[[:space:]]/}" ]] || primary_label='temp1'
+        primary_label=${primary_label:0:128}
+      fi
+      break 2
+    done
   done
 
   if [[ -n "$primary_hw" ]]; then
-    name=coretemp
+    name=$primary_name
     device_json=$(json_quote "$name")
     label_json=$(json_quote "$primary_label")
     temperature_sensors_json+="{\"device\":$device_json,\"channel\":1,\"label\":$label_json,\"milliC\":$primary_milli,\"tooltipSource\":true}"
@@ -114,6 +117,7 @@ collect_temperature_sensors() {
 
       channel=$((10#$channel_text))
       ((channel >= 1 && channel <= 9999)) || continue
+      [[ "$hw" == "$primary_hw" && "$channel_text" == 1 ]] && continue
       sign=1
       magnitude=$raw
       if [[ "$magnitude" == -* ]]; then

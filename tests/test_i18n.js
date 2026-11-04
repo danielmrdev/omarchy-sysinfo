@@ -60,7 +60,7 @@ assert.match(qmlSources["BarWidget.qml"], /function setUiLanguage\(language\)/);
 assert.match(qmlSources["BarWidget.qml"], /updateEntryInline\(root\.moduleName, entry\)/);
 assert.match(qmlSources["Panel.qml"], /hostWidget\.setUiLanguage\(language\)/);
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8"));
-assert.equal(manifest.version, "1.1.0");
+assert.equal(manifest.version, "1.1.1");
 assert.equal(manifest.name, "System Info");
 assert.equal(manifest.barWidget.displayName, "System Info");
 assert.ok(qmlSources["Panel.qml"].includes(`pluginVersion: "${manifest.version}"`));

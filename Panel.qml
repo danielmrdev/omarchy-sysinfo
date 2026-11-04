@@ -13,8 +13,7 @@ Panel {
 
   readonly property var barIdentity: hostWidget || root
   // Keep in sync with manifest.json.
-  readonly property string pluginVersion: "1.1.0"
-  readonly property string pluginAuthor: "Daniel"
+  readonly property string pluginVersion: "1.1.1"
   readonly property string projectUrl: "https://github.com/danielmrdev/omarchy-sysinfo"
   readonly property string changelogUrl: root.projectUrl + "/blob/main/CHANGELOG.md"
   readonly property string marketplaceUrl: "https://plugins.omarchy.org/plugin.html?id=danielmrdev.sysinfo"
@@ -82,7 +81,7 @@ Panel {
   function showAbout() {
     root.viewMode = "about"
     contentScroll.contentY = 0
-    Qt.callLater(function() { if (root.opened) backButton.forceActiveFocus() })
+    Qt.callLater(function() { if (root.opened) aboutButton.forceActiveFocus() })
   }
 
   function showMetrics() {
@@ -102,7 +101,7 @@ Panel {
 
   function focusPageControl(direction, allowPanelSwitch) {
     var controls = root.viewMode === "about"
-      ? [backButton, changelogButton, marketplaceButton, issueButton, githubButton,
+      ? [aboutButton, changelogButton, marketplaceButton, issueButton, githubButton,
         languageSystemButton, languageEnglishButton, languageSpanishButton]
       : [btopButton, aboutButton]
     var currentIndex = -1
@@ -124,7 +123,7 @@ Panel {
 
   function activateFocusedControl() {
     if (root.viewMode === "about") {
-      if (backButton.activeFocus) { root.showMetrics(); return }
+      if (aboutButton.activeFocus) { root.showMetrics(); return }
       if (changelogButton.activeFocus) { Qt.openUrlExternally(root.changelogUrl); return }
       if (marketplaceButton.activeFocus) { Qt.openUrlExternally(root.marketplaceUrl); return }
       if (issueButton.activeFocus) { Qt.openUrlExternally(root.issueUrl); return }
@@ -207,7 +206,9 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(430))
-    contentHeight: panel.fittedContentHeight(root.viewMode === "about" ? aboutColumn.implicitHeight : contentColumn.implicitHeight)
+    contentHeight: panel.fittedContentHeight(root.viewMode === "about"
+      ? aboutColumn.y + aboutColumn.implicitHeight
+      : contentColumn.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -224,7 +225,9 @@ Panel {
         id: contentScroll
         anchors.fill: parent
         contentWidth: width
-        contentHeight: root.viewMode === "about" ? aboutColumn.implicitHeight : contentColumn.implicitHeight
+        contentHeight: root.viewMode === "about"
+          ? aboutColumn.y + aboutColumn.implicitHeight
+          : contentColumn.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         interactive: contentHeight > height
@@ -233,7 +236,6 @@ Panel {
           id: contentColumn
           width: contentScroll.width
           spacing: Style.space(14)
-          visible: root.viewMode === "metrics"
 
           Item {
             id: metricsHeader
@@ -307,18 +309,22 @@ Panel {
               id: aboutButton
               anchors.right: parent.right
               anchors.top: titleLabels.top
-              text: root.tr("about")
+              text: root.viewMode === "about" ? root.tr("metrics") : "v" + root.pluginVersion
               foreground: root.foreground
               fontFamily: root.fontFamily
               fontSize: Style.font.body
               focusable: true
-              onClicked: root.showAbout()
+              onClicked: {
+                if (root.viewMode === "about") root.showMetrics()
+                else root.showAbout()
+              }
             }
           }
 
-          PanelSeparator { foreground: root.foreground }
+          PanelSeparator { id: headerSeparator; foreground: root.foreground }
 
           Row {
+            visible: root.viewMode === "metrics"
             width: parent.width
             spacing: Style.space(18)
 
@@ -327,7 +333,9 @@ Panel {
               label: root.tr("cpu")
               valueText: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu + "%" : root.tr("unavailable")
               progress: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpu : -1
-              valueColor: root.hostWidget && root.hostWidget.dataAvailable ? root.hostWidget.cpuColor : root.foreground
+              valueColor: root.hostWidget && root.hostWidget.dataAvailable
+                ? root.hostWidget.cpuColorOn(root.foreground)
+                : root.foreground
             }
             SummaryBlock {
               width: (parent.width - parent.spacing) / 2
@@ -341,6 +349,7 @@ Panel {
           }
 
           PanelSectionHeader {
+            visible: root.viewMode === "metrics"
             text: root.tr("cpuCores")
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -348,6 +357,7 @@ Panel {
 
           Flow {
             id: coreFlow
+            visible: root.viewMode === "metrics"
             width: parent.width
             spacing: Style.space(8)
             height: childrenRect.height
@@ -411,7 +421,7 @@ Panel {
           }
 
           Text {
-            visible: root.coreValues.length === 0
+            visible: root.viewMode === "metrics" && root.coreValues.length === 0
             textFormat: Text.PlainText
             text: root.tr("unavailable")
             color: Qt.darker(root.foreground, 1.4)
@@ -419,9 +429,13 @@ Panel {
             font.pixelSize: Style.font.body
           }
 
-          PanelSeparator { foreground: root.foreground }
+          PanelSeparator {
+            visible: root.viewMode === "metrics"
+            foreground: root.foreground
+          }
 
           PanelSectionHeader {
+            visible: root.viewMode === "metrics"
             text: root.tr("storage")
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -429,6 +443,7 @@ Panel {
 
           Column {
             id: storageList
+            visible: root.viewMode === "metrics"
             width: parent.width
             spacing: Style.space(12)
 
@@ -488,7 +503,7 @@ Panel {
           }
 
           Text {
-            visible: root.volumes.length === 0
+            visible: root.viewMode === "metrics" && root.volumes.length === 0
             textFormat: Text.PlainText
             text: root.tr("unavailable")
             color: Qt.darker(root.foreground, 1.4)
@@ -496,15 +511,20 @@ Panel {
             font.pixelSize: Style.font.body
           }
 
-          PanelSeparator { foreground: root.foreground }
+          PanelSeparator {
+            visible: root.viewMode === "metrics"
+            foreground: root.foreground
+          }
 
           PanelSectionHeader {
+            visible: root.viewMode === "metrics"
             text: root.tr("thermals")
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
 
           Row {
+            visible: root.viewMode === "metrics"
             width: parent.width
             spacing: Style.space(18)
 
@@ -528,6 +548,7 @@ Panel {
 
           Column {
             id: additionalTemperatureList
+            visible: root.viewMode === "metrics"
             width: parent.width
             spacing: Style.space(4)
 
@@ -578,52 +599,34 @@ Panel {
 
         Column {
           id: aboutColumn
+          y: metricsHeader.height + contentColumn.spacing + headerSeparator.height + contentColumn.spacing
           width: contentScroll.width
           spacing: Style.space(14)
           visible: root.viewMode === "about"
-
-          Row {
-            width: parent.width
-
-            Button {
-              id: backButton
-              text: root.tr("metrics")
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              fontSize: Style.font.body
-              focusable: true
-              onClicked: root.showMetrics()
-            }
-          }
-
-          PanelHero {
-            width: parent.width
-            title: root.tr("title")
-            detail: "v" + root.pluginVersion
-            meta: root.tr("aboutDeveloper") + " · " + root.pluginAuthor
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            iconComponent: Component {
-              Text {
-                textFormat: Text.PlainText
-                text: "󰍛"
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.display
-              }
-            }
-          }
-
-          PanelSeparator { foreground: root.foreground }
 
           Column {
             width: parent.width
             spacing: Style.space(8)
 
-            PanelSectionHeader {
-              text: root.tr("aboutLinks").toUpperCase()
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+            Row {
+              width: parent.width
+              spacing: Style.space(8)
+
+              PanelSectionHeader {
+                id: aboutLinksHeader
+                width: implicitWidth
+                text: root.tr("aboutLinks").toUpperCase()
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+              }
+
+              PanelSectionHeader {
+                width: Math.max(0, parent.width - aboutLinksHeader.width - parent.spacing)
+                text: "v" + root.pluginVersion
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                horizontalAlignment: Text.AlignRight
+              }
             }
 
             Column {

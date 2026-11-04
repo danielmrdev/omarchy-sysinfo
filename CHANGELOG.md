@@ -4,7 +4,12 @@ Notable changes for each release are listed here.
 
 ## Unreleased
 
-- Show additional hwmon temperature readings in the dropdown while preserving the primary `coretemp` tooltip. Omit unnamed zero placeholders and note when the 16-sensor limit truncates the list.
+## [1.1.1] - 2026-11-04
+
+- Use `coretemp`, `k10temp`, then `zenpower` as CPU-temperature sources; keep additional hwmon readings in the dropdown and note when the 16-sensor limit truncates the list.
+- Keep the hover summary stable while hovered; hover again to refresh its snapshot.
+- Use the popup foreground for the dashboard CPU severity color while preserving the bar's own foreground.
+- Keep the Metrics header shared across views; show plugin version beside Help & links in About.
 
 ## [1.1.0] - 2026-10-13
 

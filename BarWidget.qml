@@ -64,18 +64,21 @@ BarWidget {
   property int cpuCrit: Number(setting("cpuCrit", 85))
 
   readonly property color barTextColor: root.bar ? root.bar.barForeground : Color.foreground
-  readonly property color cpuColor: {
+
+  function cpuColorOn(baseColor) {
     if (root.cpu >= root.cpuCrit) return Color.urgent
     if (root.cpu >= root.cpuWarn) {
       var t = (root.cpu - root.cpuWarn) / Math.max(1, root.cpuCrit - root.cpuWarn)
       return Qt.rgba(
-        root.barTextColor.r + (Color.urgent.r - root.barTextColor.r) * t,
-        root.barTextColor.g + (Color.urgent.g - root.barTextColor.g) * t,
-        root.barTextColor.b + (Color.urgent.b - root.barTextColor.b) * t,
+        baseColor.r + (Color.urgent.r - baseColor.r) * t,
+        baseColor.g + (Color.urgent.g - baseColor.g) * t,
+        baseColor.b + (Color.urgent.b - baseColor.b) * t,
         1)
     }
-    return root.barTextColor
+    return baseColor
   }
+
+  readonly property color cpuColor: root.cpuColorOn(root.barTextColor)
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item
@@ -204,6 +207,8 @@ BarWidget {
 
     function refreshTooltip() {
       if (!metric.bar || !mouse.containsMouse) return
+      // PluginBarApi has no in-place tooltip properties; keep its hover snapshot stable.
+      if (!("tooltipTarget" in metric.bar)) return
       if (metric.bar.tooltipTarget === metric)
         metric.bar.tooltipText = metric.tooltipText
       else
@@ -321,8 +326,10 @@ BarWidget {
                   || !root.finiteNumber(sensor.milliC) || Math.floor(sensor.milliC) !== sensor.milliC || Math.abs(sensor.milliC) > 9007199254740991
                   || typeof sensor.tooltipSource !== "boolean") continue
 
+              var isCpuTemperatureSensor = sensor.device === "coretemp"
+                || sensor.device === "k10temp" || sensor.device === "zenpower"
               if (sensor.tooltipSource) {
-                if (primaryTemperatureFound || sensor.device !== "coretemp" || sensor.channel !== 1 || sensor.milliC < 0) continue
+                if (primaryTemperatureFound || !isCpuTemperatureSensor || sensor.channel !== 1 || sensor.milliC < 0) continue
                 primaryTemperatureFound = true
               } else if (sensor.device === "coretemp") {
                 continue
