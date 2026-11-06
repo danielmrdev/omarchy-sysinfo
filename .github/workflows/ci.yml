@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: CI checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Validate manifest and entry points
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("manifest.json").read_text())
+          assert manifest["schemaVersion"] == 1
+          for entry in manifest["entryPoints"].values():
+              path = Path(entry)
+              assert not path.is_absolute() and ".." not in path.parts, entry
+              assert path.is_file() and not path.is_symlink(), entry
+          PY
+
+      - name: Check Bash syntax
+        run: bash -n sysinfo.sh tests/test_sysinfo.sh
+
+      - name: Test translations and bar width
+        run: node tests/test_i18n.js && node tests/test_bar_width.js
+
+      - name: Test system metrics
+        run: ./tests/test_sysinfo.sh
+
+      - name: Check collector JSON output
+        run: ./sysinfo.sh | python3 -m json.tool > /dev/null

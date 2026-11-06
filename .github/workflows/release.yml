@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag and plugin version
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"])')" == "$version" ]]
+          VERSION="$version" python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = re.escape(os.environ["VERSION"])
+          pattern = re.compile(rf"## \[{version}\] - \d{{4}}-\d{{2}}-\d{{2}}")
+          assert any(pattern.fullmatch(line) for line in Path("CHANGELOG.md").read_text().splitlines()), (
+              f"CHANGELOG.md has no release entry for {os.environ['VERSION']}"
+          )
+          PY
+          [[ "$(git rev-list -n 1 "$GITHUB_REF_NAME")" == "$GITHUB_SHA" ]]
+
+      - name: Validate manifest and entry points
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("manifest.json").read_text())
+          assert manifest["schemaVersion"] == 1
+          for entry in manifest["entryPoints"].values():
+              path = Path(entry)
+              assert not path.is_absolute() and ".." not in path.parts, entry
+              assert path.is_file() and not path.is_symlink(), entry
+          PY
+
+      - name: Run project checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n sysinfo.sh tests/test_sysinfo.sh
+          node tests/test_i18n.js
+          node tests/test_bar_width.js
+          ./tests/test_sysinfo.sh
+          ./sysinfo.sh | python3 -m json.tool > /dev/null
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          --verify-tag
+          --generate-notes
+          --title "$GITHUB_REF_NAME"
