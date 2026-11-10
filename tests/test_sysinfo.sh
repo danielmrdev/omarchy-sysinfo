@@ -27,6 +27,10 @@ fi
 if [[ "${SLOW_FIRST_DF:-0}" == 1 ]] && [[ $(wc -l < "$DF_CALL_LOG") -eq 1 ]]; then
   /usr/bin/sleep 5
 fi
+if [[ "${IGNORE_TERM_FIRST_DF:-0}" == 1 ]] && [[ $(wc -l < "$DF_CALL_LOG") -eq 1 ]]; then
+  trap '' TERM
+  while :; do /usr/bin/sleep 0.1; done
+fi
 printf 'Size Used Use%%\n10737418240 5368709120 50%%\n'
 STUB
 chmod +x "$tmp_dir/bin/findmnt" "$tmp_dir/bin/df"
@@ -35,13 +39,24 @@ run_collector() {
   local fixture=$1
   local slow=${2:-0}
   local hwmon_root=${3:-"$tmp_dir/empty-hwmon"}
-  : > "$tmp_dir/df.log"
-  PATH="$tmp_dir/bin:$PATH" \
-    FINDMNT_FIXTURE="$fixture" \
-    DF_CALL_LOG="$tmp_dir/df.log" \
-    SLOW_FIRST_DF="$slow" \
-    HWMON_ROOT="$hwmon_root" \
+  local ignore_term=${4:-0}
+  local guard=${5:-0}
+  local -a collector_command=(
+    env
+    "PATH=$tmp_dir/bin:$PATH"
+    "FINDMNT_FIXTURE=$fixture"
+    "DF_CALL_LOG=$tmp_dir/df.log"
+    "SLOW_FIRST_DF=$slow"
+    "IGNORE_TERM_FIRST_DF=$ignore_term"
+    "HWMON_ROOT=$hwmon_root"
     bash "$repo_dir/sysinfo.sh"
+  )
+  : > "$tmp_dir/df.log"
+  if [[ "$guard" == 1 ]]; then
+    timeout --kill-after=1s 4s "${collector_command[@]}"
+  else
+    "${collector_command[@]}"
+  fi
 }
 
 cat > "$tmp_dir/normal.mounts" <<'FIXTURE'
@@ -287,3 +302,27 @@ assert all(not volume["available"] for volume in info["storage"])
 assert info["diskAvailable"] is False
 print("PASS: one hung mount bounds scan and leaves remaining mounts visible")
 PY
+
+cat > "$tmp_dir/term-ignoring.mounts" <<'FIXTURE'
+/dev/root / ext4
+server:/term-ignoring /mnt/term-ignoring nfs4
+/dev/data /mnt/data ext4
+FIXTURE
+if term_ignoring_json=$(run_collector "$tmp_dir/term-ignoring.mounts" 0 "$tmp_dir/empty-hwmon" 1 1); then
+  python3 - "$term_ignoring_json" "$tmp_dir/df.log" <<'PY'
+import json
+import sys
+
+info = json.loads(sys.argv[1])
+with open(sys.argv[2], encoding="utf-8") as log:
+    calls = log.readlines()
+assert len(calls) == 1, len(calls)
+assert len(info["storage"]) == 3
+assert all(not volume["available"] for volume in info["storage"])
+assert info["diskAvailable"] is False
+print("PASS: SIGTERM-resistant mount is killed and scan completes")
+PY
+else
+  printf '%s\n' 'FAIL: SIGTERM-resistant mount stalled collector' >&2
+  exit 1
+fi

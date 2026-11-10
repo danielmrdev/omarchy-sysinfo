@@ -2,7 +2,7 @@
 
 A third-party Omarchy Shell bar widget that keeps the bar compact: CPU percentage stays visible, while the full system dashboard opens on click. Hover for a short summary. The dashboard includes a button to open or focus `btop`.
 
-![System Info dashboard, version 1.1.1](preview.png)
+![System Info dashboard, version 1.1.2](preview.png)
 
 Tested on Omarchy `4.0.6`.
 
@@ -12,7 +12,7 @@ Tested on Omarchy `4.0.6`.
 - Hover summary: CPU, RAM, root filesystem usage, CPU temperature, and fan speed. It stays stable while hovered; hover again to refresh the snapshot.
 - Click panel: aggregate and per-core CPU, RAM, every unique mounted filesystem, the primary CPU temperature, other hwmon temperatures, and fan speed.
 - Storage includes local and network/FUSE filesystems, excludes pseudo-filesystems, and deduplicates mounts backed by the same source (including Btrfs subvolumes). A volume whose usage cannot be queried remains listed as unavailable.
-- Metrics refresh every three seconds. Storage queries share a one-second budget; each individual query has a one-second timeout.
+- Metrics refresh every three seconds. Storage queries start within a one-second scan budget; each query gets a one-second timeout and a one-second SIGKILL grace period.
 - Missing sensor data is shown as unavailable rather than as zero. A readable zero-temperature reading remains valid when its channel has a label or is the primary CPU reading. A readable zero-RPM reading remains `0 RPM`.
 - About keeps the shared Metrics header, shows the plugin version beside Help & links, and supports English and Spanish. Choose System, English, or Español; selection persists in Omarchy's `shell.json`, with English fallback for unsupported system locales.
 

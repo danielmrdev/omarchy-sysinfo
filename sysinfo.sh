@@ -208,7 +208,7 @@ collect_storage() {
     storage_now_ms=$((10#$clock_seconds * 1000 + 10#$clock_fraction / 1000))
     stats=''
     if (( storage_now_ms - storage_started_ms < 1000 )); then
-      stats=$(timeout 1s df -B1 --output=size,used,pcent -- "$mountpoint" 2>/dev/null | awk 'NR == 2 {gsub(/%/, "", $3); print $1, $2, $3}')
+      stats=$(timeout --kill-after=1s 1s df -B1 --output=size,used,pcent -- "$mountpoint" 2>/dev/null | awk 'NR == 2 {gsub(/%/, "", $3); print $1, $2, $3}')
     fi
     available=false
     used_gib=null
