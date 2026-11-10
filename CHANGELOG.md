@@ -2,7 +2,9 @@
 
 Notable changes for each release are listed here.
 
-## Unreleased
+## [1.1.3] - 2026-11-10
+
+- Bound the full collector to five seconds plus SIGKILL grace; kill stuck descendants, clear stale metrics, and retry on the next poll.
 
 ## [1.1.2] - 2026-11-10
 

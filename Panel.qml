@@ -13,7 +13,7 @@ Panel {
 
   readonly property var barIdentity: hostWidget || root
   // Keep in sync with manifest.json.
-  readonly property string pluginVersion: "1.1.2"
+  readonly property string pluginVersion: "1.1.3"
   readonly property string projectUrl: "https://github.com/danielmrdev/omarchy-sysinfo"
   readonly property string changelogUrl: root.projectUrl + "/blob/main/CHANGELOG.md"
   readonly property string marketplaceUrl: "https://plugins.omarchy.org/plugin.html?id=danielmrdev.sysinfo"

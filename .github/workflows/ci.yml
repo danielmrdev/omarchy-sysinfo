@@ -39,7 +39,7 @@ jobs:
           PY
 
       - name: Check Bash syntax
-        run: bash -n sysinfo.sh tests/test_sysinfo.sh
+        run: bash -n sysinfo.sh run-collector.sh tests/test_sysinfo.sh
 
       - name: Test translations and bar width
         run: node tests/test_i18n.js && node tests/test_bar_width.js
@@ -48,4 +48,4 @@ jobs:
         run: ./tests/test_sysinfo.sh
 
       - name: Check collector JSON output
-        run: ./sysinfo.sh | python3 -m json.tool > /dev/null
+        run: bash run-collector.sh "$PWD/sysinfo.sh" | python3 -m json.tool > /dev/null

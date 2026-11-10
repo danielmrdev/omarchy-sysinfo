@@ -133,8 +133,8 @@ BarWidget {
     metricButton.refreshTooltip()
   }
 
-  function scriptPath() {
-    var url = String(Qt.resolvedUrl("sysinfo.sh"))
+  function scriptPath(fileName) {
+    var url = String(Qt.resolvedUrl(fileName))
     if (url.indexOf("file://") === 0) return url.substring(7)
     return url
   }
@@ -278,6 +278,7 @@ BarWidget {
   }
 
   Timer {
+    // Failed or timed-out collections are retried after the active Process exits.
     interval: 3000
     running: true
     repeat: true
@@ -287,7 +288,7 @@ BarWidget {
 
   Process {
     id: infoProc
-    command: ["bash", root.scriptPath()]
+    command: ["bash", root.scriptPath("run-collector.sh"), root.scriptPath("sysinfo.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

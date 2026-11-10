@@ -8,6 +8,12 @@ mkdir -p "$tmp_dir/bin" "$tmp_dir/empty-hwmon"
 
 cat > "$tmp_dir/bin/findmnt" <<'STUB'
 #!/usr/bin/env bash
+if [[ "${BLOCK_FINDMNT:-0}" == 1 ]]; then
+  (trap '' TERM; while :; do /usr/bin/sleep 0.1; done) &
+  child=$!
+  printf '%s\n' "$child" > "$BLOCKED_CHILD_PID"
+  wait "$child"
+fi
 cat "$FINDMNT_FIXTURE"
 STUB
 
@@ -326,3 +332,62 @@ else
   printf '%s\n' 'FAIL: SIGTERM-resistant mount stalled collector' >&2
   exit 1
 fi
+
+cat > "$tmp_dir/blocked.mounts" <<'FIXTURE'
+/dev/root / ext4
+FIXTURE
+: > "$tmp_dir/blocked-child.pid"
+python3 - "$repo_dir" "$tmp_dir" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+repo_dir, tmp_dir = sys.argv[1:]
+tmp = Path(tmp_dir)
+env = os.environ.copy()
+env.update({
+    "PATH": f"{tmp / 'bin'}:{env['PATH']}",
+    "FINDMNT_FIXTURE": str(tmp / "blocked.mounts"),
+    "DF_CALL_LOG": str(tmp / "df.log"),
+    "SLOW_FIRST_DF": "0",
+    "IGNORE_TERM_FIRST_DF": "0",
+    "HWMON_ROOT": str(tmp / "empty-hwmon"),
+    "BLOCK_FINDMNT": "1",
+    "BLOCKED_CHILD_PID": str(tmp / "blocked-child.pid"),
+})
+started = time.monotonic()
+with (tmp / "blocked.json").open("wb") as stdout, (tmp / "blocked.stderr").open("wb") as stderr:
+    process = subprocess.Popen(
+        ["bash", str(Path(repo_dir) / "run-collector.sh"), str(Path(repo_dir) / "sysinfo.sh")],
+        cwd=repo_dir,
+        env=env,
+        stdout=stdout,
+        stderr=stderr,
+        start_new_session=True,
+    )
+    try:
+        runner_status = process.wait(timeout=9)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+        raise AssertionError("whole-collector runner exceeded outer test guard")
+elapsed = time.monotonic() - started
+assert runner_status != 0, "blocked collector returned success"
+assert 5 <= elapsed < 9, f"whole collector deadline took {elapsed:.2f}s (status {runner_status})"
+assert (tmp / "blocked.json").stat().st_size == 0, "blocked collector emitted partial JSON"
+child_pid = int((tmp / "blocked-child.pid").read_text())
+for _ in range(20):
+    try:
+        stat = Path(f"/proc/{child_pid}/stat").read_text()
+        child_state = stat.rpartition(")")[2].strip().split()[0]
+    except FileNotFoundError:
+        child_state = ""
+    if not child_state or child_state == "Z":
+        break
+    time.sleep(0.1)
+assert not child_state or child_state == "Z", f"collector descendant {child_pid} survived (state {child_state})"
+print("PASS: whole-collector deadline bounds invocation and kills blocked descendants")
+PY

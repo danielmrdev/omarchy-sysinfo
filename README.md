@@ -2,7 +2,7 @@
 
 A third-party Omarchy Shell bar widget that keeps the bar compact: CPU percentage stays visible, while the full system dashboard opens on click. Hover for a short summary. The dashboard includes a button to open or focus `btop`.
 
-![System Info dashboard, version 1.1.2](preview.png)
+![System Info dashboard, version 1.1.3](preview.png)
 
 Tested on Omarchy `4.0.6`.
 
@@ -12,7 +12,7 @@ Tested on Omarchy `4.0.6`.
 - Hover summary: CPU, RAM, root filesystem usage, CPU temperature, and fan speed. It stays stable while hovered; hover again to refresh the snapshot.
 - Click panel: aggregate and per-core CPU, RAM, every unique mounted filesystem, the primary CPU temperature, other hwmon temperatures, and fan speed.
 - Storage includes local and network/FUSE filesystems, excludes pseudo-filesystems, and deduplicates mounts backed by the same source (including Btrfs subvolumes). A volume whose usage cannot be queried remains listed as unavailable.
-- Metrics refresh every three seconds. Storage queries start within a one-second scan budget; each query gets a one-second timeout and a one-second SIGKILL grace period.
+- Metrics refresh every three seconds. The full collector has a five-second deadline plus one-second SIGKILL grace, covering `findmnt`, sensor reads, and storage queries. Per-volume `df` calls also have individual timeouts. A failed collection clears stale values; the next poll retries.
 - Missing sensor data is shown as unavailable rather than as zero. A readable zero-temperature reading remains valid when its channel has a label or is the primary CPU reading. A readable zero-RPM reading remains `0 RPM`.
 - About keeps the shared Metrics header, shows the plugin version beside Help & links, and supports English and Spanish. Choose System, English, or Español; selection persists in Omarchy's `shell.json`, with English fallback for unsupported system locales.
 
@@ -47,7 +47,7 @@ omarchy plugin remove danielmrdev.sysinfo
 
 ## Data and permissions
 
-The collector reads `/proc`, `/sys`, mount metadata, and filesystem usage. `df` may access an already-mounted network or FUSE filesystem while querying its usage; these calls are bounded by timeouts. The plugin makes no direct API calls and requests no elevated privileges. The `btop` helper runs only when its button is clicked.
+The collector reads `/proc`, `/sys`, mount metadata, and filesystem usage. `findmnt` and sensor reads can stall too, so the full collector runs under a process-group deadline with SIGKILL escalation; per-volume `df` calls also have their own timeout. These bounds include already-mounted network or FUSE filesystems. The plugin makes no direct API calls and requests no elevated privileges. The `btop` helper runs only when its button is clicked.
 
 ## Development
 
@@ -57,11 +57,12 @@ Collector tests use Python 3; the translation check uses Node.js. From the repos
 omarchy plugin validate .
 find . -type f -name '*.qml' -print0 | xargs -0 qmllint -I "$OMARCHY_PATH/shell"
 bash -n sysinfo.sh
+bash -n run-collector.sh
 bash -n tests/test_sysinfo.sh
 node tests/test_i18n.js
 node tests/test_bar_width.js
 ./tests/test_sysinfo.sh
-./sysinfo.sh | python3 -m json.tool
+bash run-collector.sh "$PWD/sysinfo.sh" | python3 -m json.tool
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for release history. This project is licensed under MIT; see [LICENSE](LICENSE).
