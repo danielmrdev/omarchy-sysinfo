@@ -108,6 +108,7 @@ printf '99000\n' > "$tmp_dir/hwmon-main/hwmon2/temp1_input"
 printf 'Later package\n' > "$tmp_dir/hwmon-main/hwmon2/temp1_label"
 printf 'thinkpad\n' > "$tmp_dir/hwmon-main/hwmon3/name"
 printf '000000\n' > "$tmp_dir/hwmon-main/hwmon3/temp1_input"
+printf '1800\n' > "$tmp_dir/hwmon-main/hwmon3/fan1_input"
 printf 'CPU Zero\n' > "$tmp_dir/hwmon-main/hwmon3/temp1_label"
 printf '000000\n' > "$tmp_dir/hwmon-main/hwmon3/temp2_input"
 printf '%s\n' '-00012345' > "$tmp_dir/hwmon-main/hwmon3/temp3_input"
@@ -144,8 +145,22 @@ expected = [
 ]
 assert info["temperatureSensors"] == expected, info["temperatureSensors"]
 assert repeated_info["temperatureSensors"] == expected, repeated_info["temperatureSensors"]
+assert info["fan"] == 1800 and info["fanAvailable"] is True, info
 assert info["temperatureSensorsTruncated"] is False
 print("PASS: primary selection, filtering, signed values, escaping, and deterministic order")
+PY
+
+mkdir -p "$tmp_dir/hwmon-apple/hwmon0"
+printf 'applesmc\n' > "$tmp_dir/hwmon-apple/hwmon0/name"
+printf '2400\n' > "$tmp_dir/hwmon-apple/hwmon0/fan1_input"
+apple_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-apple")
+python3 - "$apple_json" <<'PY'
+import json
+import sys
+
+info = json.loads(sys.argv[1])
+assert info["fan"] == 2400 and info["fanAvailable"] is True, info
+print("PASS: Apple SMC fan sensor")
 PY
 
 mkdir -p "$tmp_dir/hwmon-amd"/{hwmon0,hwmon1}

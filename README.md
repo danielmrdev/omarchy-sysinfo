@@ -2,7 +2,7 @@
 
 A third-party Omarchy Shell bar widget that keeps the bar compact: CPU percentage stays visible, while the full system dashboard opens on click. Hover for a short summary. The dashboard includes a button to open or focus `btop`.
 
-![System Info dashboard, version 1.1.3](preview.png)
+![System Info dashboard, version 1.1.4](preview.png)
 
 Tested on Omarchy `4.0.6`.
 
@@ -22,7 +22,7 @@ Tested on Omarchy `4.0.6`.
 - Bash, `awk`, `findmnt` (util-linux), `df` and `timeout` (coreutils), plus standard `/proc` and `/sys` filesystems. These are present on a standard Omarchy installation.
 - `btop` is optional; it is used only by the panel's launch button.
 
-Temperature readings come from readable `temp*_input` files under `/sys/class/hwmon`. The tooltip and summary card use the first valid non-negative `temp1_input` by priority: `coretemp`, `k10temp`, then `zenpower`. The panel also lists other hwmon readings and extra channels from the selected AMD sensor, while omitting non-primary coretemp channels and unnamed zero-value channels. It shows at most 16 sensors and uses the device channel name when a label is missing. Fan speed uses the ThinkPad `fan1_input` or `fan2_input`; other hardware may not report fan speed.
+Temperature readings come from readable `temp*_input` files under `/sys/class/hwmon`. The tooltip and summary card use the first valid non-negative `temp1_input` by priority: `coretemp`, `k10temp`, then `zenpower`. The panel also lists other hwmon readings and extra channels from the selected AMD sensor, while omitting non-primary coretemp channels and unnamed zero-value channels. It shows at most 16 sensors and uses the device channel name when a label is missing. Fan speed uses the first readable `fan*_input` exposed under `/sys/class/hwmon` (including ThinkPad and Apple SMC sensors); some hardware or kernel configurations may not expose fan speed.
 
 ## Install
 
