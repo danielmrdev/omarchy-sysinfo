@@ -39,7 +39,8 @@ ram_total_gb=$(awk -v t="$ram_total" 'BEGIN {printf "%.1f", t/1024}')
 # Fan availability is separate so a readable zero RPM remains a valid reading.
 fan=0
 fan_available=false
-for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
+apple_smc_root=${APPLESMC_ROOT:-/sys/bus/acpi/devices/APP0001:00}
+for hw in "$apple_smc_root" /sys/devices/platform/applesmc.*; do
   for fan_input in "$hw"/fan*_input; do
     [[ -r "$fan_input" ]] || continue
     IFS= read -r fan_rpm < "$fan_input" || continue
@@ -51,6 +52,22 @@ for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
   done
   $fan_available && break
 done
+
+# Prefer the Mac's system fan sensors above hwmon devices such as the GPU.
+if ! $fan_available; then
+  for hw in "${HWMON_ROOT:-/sys/class/hwmon}"/hwmon*; do
+    for fan_input in "$hw"/fan*_input; do
+      [[ -r "$fan_input" ]] || continue
+      IFS= read -r fan_rpm < "$fan_input" || continue
+      if [[ "$fan_rpm" =~ ^[0-9]+$ ]]; then
+        fan=$fan_rpm
+        fan_available=true
+        break
+      fi
+    done
+    $fan_available && break
+  done
+fi
 
 json_quote() {
   local value=$1

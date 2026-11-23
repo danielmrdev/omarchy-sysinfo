@@ -22,7 +22,7 @@ Tested on Omarchy `4.0.6`.
 - Bash, `awk`, `findmnt` (util-linux), `df` and `timeout` (coreutils), plus standard `/proc` and `/sys` filesystems. These are present on a standard Omarchy installation.
 - `btop` is optional; it is used only by the panel's launch button.
 
-Temperature readings come from readable `temp*_input` files under `/sys/class/hwmon`. The tooltip and summary card use the first valid non-negative `temp1_input` by priority: `coretemp`, `k10temp`, then `zenpower`. The panel also lists other hwmon readings and extra channels from the selected AMD sensor, while omitting non-primary coretemp channels and unnamed zero-value channels. It shows at most 16 sensors and uses the device channel name when a label is missing. Fan speed uses the first readable `fan*_input` exposed under `/sys/class/hwmon` (including ThinkPad and Apple SMC sensors); some hardware or kernel configurations may not expose fan speed.
+Temperature readings come from readable `temp*_input` files under `/sys/class/hwmon`. The tooltip and summary card use the first valid non-negative `temp1_input` by priority: `coretemp`, `k10temp`, then `zenpower`. The panel also lists other hwmon readings and extra channels from the selected AMD sensor, while omitting non-primary coretemp channels and unnamed zero-value channels. It shows at most 16 sensors and uses the device channel name when a label is missing. Fan speed prefers Apple SMC `fan*_input` sensors, then falls back to the first readable hwmon `fan*_input` (which may be a GPU fan); some hardware or kernel configurations may not expose fan speed.
 
 ## Install
 

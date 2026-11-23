@@ -47,6 +47,7 @@ run_collector() {
   local hwmon_root=${3:-"$tmp_dir/empty-hwmon"}
   local ignore_term=${4:-0}
   local guard=${5:-0}
+  local apple_smc_root=${6:-"$tmp_dir/empty-apple"}
   local -a collector_command=(
     env
     "PATH=$tmp_dir/bin:$PATH"
@@ -55,6 +56,7 @@ run_collector() {
     "SLOW_FIRST_DF=$slow"
     "IGNORE_TERM_FIRST_DF=$ignore_term"
     "HWMON_ROOT=$hwmon_root"
+    "APPLESMC_ROOT=$apple_smc_root"
     bash "$repo_dir/sysinfo.sh"
   )
   : > "$tmp_dir/df.log"
@@ -150,17 +152,19 @@ assert info["temperatureSensorsTruncated"] is False
 print("PASS: primary selection, filtering, signed values, escaping, and deterministic order")
 PY
 
-mkdir -p "$tmp_dir/hwmon-apple/hwmon0"
-printf 'applesmc\n' > "$tmp_dir/hwmon-apple/hwmon0/name"
-printf '2400\n' > "$tmp_dir/hwmon-apple/hwmon0/fan1_input"
-apple_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-apple")
+mkdir -p "$tmp_dir/hwmon-apple/hwmon0" "$tmp_dir/apple-acpi/APP0001:00"
+printf 'amdgpu\n' > "$tmp_dir/hwmon-apple/hwmon0/name"
+printf '0\n' > "$tmp_dir/hwmon-apple/hwmon0/fan1_input"
+printf '2400\n' > "$tmp_dir/apple-acpi/APP0001:00/fan1_input"
+printf '3100\n' > "$tmp_dir/apple-acpi/APP0001:00/fan2_input"
+apple_json=$(run_collector "$tmp_dir/normal.mounts" 0 "$tmp_dir/hwmon-apple" 0 0 "$tmp_dir/apple-acpi/APP0001:00")
 python3 - "$apple_json" <<'PY'
 import json
 import sys
 
 info = json.loads(sys.argv[1])
 assert info["fan"] == 2400 and info["fanAvailable"] is True, info
-print("PASS: Apple SMC fan sensor")
+print("PASS: Apple SMC fans take priority over GPU fan sensor")
 PY
 
 mkdir -p "$tmp_dir/hwmon-amd"/{hwmon0,hwmon1}
